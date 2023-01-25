@@ -276,6 +276,7 @@ void ssd1306_SetCursor(uint8_t x, uint8_t y) {
     SSD1306.CurrentY = y;
 }
 
+#ifdef SSD1306_GRAPHICS
 /* Draw line by Bresenhem's algorithm */
 void ssd1306_Line(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, SSD1306_COLOR color) {
     int32_t deltaX = abs(x2 - x1);
@@ -541,6 +542,7 @@ void ssd1306_DrawBitmap(uint8_t x, uint8_t y, const unsigned char* bitmap, uint8
     }
     return;
 }
+#endif // SSD1306_GRAPHICS
 
 void ssd1306_SetContrast(const uint8_t value) {
     const uint8_t kSetContrastControlRegister = 0x81;
