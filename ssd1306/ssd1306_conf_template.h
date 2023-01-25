@@ -63,4 +63,7 @@
 // It can be 32, 64 or 128. The default value is 64.
 // #define SSD1306_HEIGHT          64
 
+// Misc drawing primitives, included or not
+#define SSD1306_GRAPHICS
+
 #endif /* __SSD1306_CONF_H__ */
