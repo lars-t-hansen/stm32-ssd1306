@@ -52,18 +52,6 @@ _BEGIN_STD_C
 
 #include "ssd1306_fonts.h"
 
-/* vvv I2C config vvv */
-
-#ifndef SSD1306_I2C_PORT
-#define SSD1306_I2C_PORT        hi2c1
-#endif
-
-#ifndef SSD1306_I2C_ADDR
-#define SSD1306_I2C_ADDR        (0x3C << 1)
-#endif
-
-/* ^^^ I2C config ^^^ */
-
 /* vvv SPI config vvv */
 
 #ifndef SSD1306_SPI_PORT
@@ -93,28 +81,6 @@ _BEGIN_STD_C
 
 /* ^^^ SPI config ^^^ */
 
-#if defined(SSD1306_USE_I2C)
-extern I2C_HandleTypeDef SSD1306_I2C_PORT;
-#elif defined(SSD1306_USE_SPI)
-extern SPI_HandleTypeDef SSD1306_SPI_PORT;
-#else
-#error "You should define SSD1306_USE_SPI or SSD1306_USE_I2C macro!"
-#endif
-
-// SSD1306 OLED height in pixels
-#ifndef SSD1306_HEIGHT
-#define SSD1306_HEIGHT          64
-#endif
-
-// SSD1306 width in pixels
-#ifndef SSD1306_WIDTH
-#define SSD1306_WIDTH           128
-#endif
-
-#ifndef SSD1306_BUFFER_SIZE
-#define SSD1306_BUFFER_SIZE   SSD1306_WIDTH * SSD1306_HEIGHT / 8
-#endif
-
 // Enumeration for screen colors
 typedef enum {
     Black = 0x00, // Black color, no pixel
@@ -135,28 +101,56 @@ typedef struct {
 } SSD1306_t;
 
 typedef struct {
+#if defined(SSD1306_USE_I2C)
+  I2C_HandleTypeDef* bus;
+#elif defined(SSD1306_USE_SPI)
+  SPI_HandleTypeDef* bus;
+#else
+# error "You should define SSD1306_USE_SPI or SSD1306_USE_I2C macro!"
+#endif
+  unsigned addr;
+  unsigned width;
+  unsigned height;
+  unsigned buffer_size;
+  SSD1306_t screen;
+  uint8_t buffer[1];		/* Will be larger */
+} SSD1306_Device_t;
+
+// Width and height should be constants, in which case this is also constant and can
+// be used to allocate memory statically
+#define SSD1306_DEVICE_SIZE(width, height) (sizeof(SSD1306_Device_t) + (((width) * (height)) / 8) - 1)
+
+#if defined(SSD1306_USE_I2C)
+// This will initialize the device struct using the available memory, which must be large
+// enough to hold the struct and the memory for the buffer.
+SSD1306_Device_t* ssd1306_i2c_init(uint8_t* mem, I2C_HandleTypeDef* bus, int i2c_addr, int width, int height);
+#else
+SSD1306_Device_t* ssd1306_spi_init(uint8_t* mem, I2C_HandleTypeDef* bus, int spi_addr, int width, int height);
+#endif
+
+typedef struct {
     uint8_t x;
     uint8_t y;
 } SSD1306_VERTEX;
 
 // Procedure definitions
-void ssd1306_Init(void);
-void ssd1306_Fill(SSD1306_COLOR color);
-void ssd1306_UpdateScreen(void);
-void ssd1306_DrawPixel(uint8_t x, uint8_t y, SSD1306_COLOR color);
-char ssd1306_WriteChar(char ch, FontDef Font, SSD1306_COLOR color);
-char ssd1306_WriteString(char* str, FontDef Font, SSD1306_COLOR color);
-void ssd1306_SetCursor(uint8_t x, uint8_t y);
+void ssd1306_Init(SSD1306_Device_t* device);
+void ssd1306_Fill(SSD1306_Device_t* device, SSD1306_COLOR color);
+void ssd1306_UpdateScreen(SSD1306_Device_t* device);
+void ssd1306_DrawPixel(SSD1306_Device_t* device, uint8_t x, uint8_t y, SSD1306_COLOR color);
+char ssd1306_WriteChar(SSD1306_Device_t* device, char ch, FontDef Font, SSD1306_COLOR color);
+char ssd1306_WriteString(SSD1306_Device_t* device, char* str, FontDef Font, SSD1306_COLOR color);
+void ssd1306_SetCursor(SSD1306_Device_t* device, uint8_t x, uint8_t y);
 #ifdef SSD1306_GRAPHICS
-void ssd1306_Line(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, SSD1306_COLOR color);
-void ssd1306_DrawArc(uint8_t x, uint8_t y, uint8_t radius, uint16_t start_angle, uint16_t sweep, SSD1306_COLOR color);
-void ssd1306_DrawArcWithRadiusLine(uint8_t x, uint8_t y, uint8_t radius, uint16_t start_angle, uint16_t sweep, SSD1306_COLOR color);
-void ssd1306_DrawCircle(uint8_t par_x, uint8_t par_y, uint8_t par_r, SSD1306_COLOR color);
-void ssd1306_FillCircle(uint8_t par_x,uint8_t par_y,uint8_t par_r,SSD1306_COLOR par_color);
-void ssd1306_Polyline(const SSD1306_VERTEX *par_vertex, uint16_t par_size, SSD1306_COLOR color);
-void ssd1306_DrawRectangle(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, SSD1306_COLOR color);
-void ssd1306_FillRectangle(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, SSD1306_COLOR color);
-void ssd1306_DrawBitmap(uint8_t x, uint8_t y, const unsigned char* bitmap, uint8_t w, uint8_t h, SSD1306_COLOR color);
+void ssd1306_Line(SSD1306_Device_t* device, uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, SSD1306_COLOR color);
+void ssd1306_DrawArc(SSD1306_Device_t* device, uint8_t x, uint8_t y, uint8_t radius, uint16_t start_angle, uint16_t sweep, SSD1306_COLOR color);
+void ssd1306_DrawArcWithRadiusLine(SSD1306_Device_t* device, uint8_t x, uint8_t y, uint8_t radius, uint16_t start_angle, uint16_t sweep, SSD1306_COLOR color);
+void ssd1306_DrawCircle(SSD1306_Device_t* device, uint8_t par_x, uint8_t par_y, uint8_t par_r, SSD1306_COLOR color);
+void ssd1306_FillCircle(SSD1306_Device_t* device, uint8_t par_x,uint8_t par_y,uint8_t par_r,SSD1306_COLOR par_color);
+void ssd1306_Polyline(SSD1306_Device_t* device, const SSD1306_VERTEX *par_vertex, uint16_t par_size, SSD1306_COLOR color);
+void ssd1306_DrawRectangle(SSD1306_Device_t* device, uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, SSD1306_COLOR color);
+void ssd1306_FillRectangle(SSD1306_Device_t* device, uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, SSD1306_COLOR color);
+void ssd1306_DrawBitmap(SSD1306_Device_t* device, uint8_t x, uint8_t y, const unsigned char* bitmap, uint8_t w, uint8_t h, SSD1306_COLOR color);
 #endif
 
 /**
@@ -165,26 +159,26 @@ void ssd1306_DrawBitmap(uint8_t x, uint8_t y, const unsigned char* bitmap, uint8
  * @note Contrast increases as the value increases.
  * @note RESET = 7Fh.
  */
-void ssd1306_SetContrast(const uint8_t value);
+void ssd1306_SetContrast(SSD1306_Device_t* device, const uint8_t value);
 
 /**
  * @brief Set Display ON/OFF.
  * @param[in] on 0 for OFF, any for ON.
  */
-void ssd1306_SetDisplayOn(const uint8_t on);
+void ssd1306_SetDisplayOn(SSD1306_Device_t* device, const uint8_t on);
 
 /**
  * @brief Reads DisplayOn state.
  * @return  0: OFF.
  *          1: ON.
  */
-uint8_t ssd1306_GetDisplayOn();
+uint8_t ssd1306_GetDisplayOn(SSD1306_Device_t* device);
 
 // Low-level procedures
-void ssd1306_Reset(void);
-void ssd1306_WriteCommand(uint8_t byte);
-void ssd1306_WriteData(uint8_t* buffer, size_t buff_size);
-SSD1306_Error_t ssd1306_FillBuffer(uint8_t* buf, uint32_t len);
+void ssd1306_Reset(SSD1306_Device_t* device);
+void ssd1306_WriteCommand(SSD1306_Device_t* device, uint8_t byte);
+void ssd1306_WriteData(SSD1306_Device_t* device, uint8_t* buffer, size_t buff_size);
+SSD1306_Error_t ssd1306_FillBuffer(SSD1306_Device_t* device, uint8_t* buf, uint32_t len);
 
 _END_STD_C
 
